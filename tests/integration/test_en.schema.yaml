@@ -1,0 +1,32 @@
+# 集成测试用的最小英文方案：table_translator + 英文词典 + gloss_filter。
+# 用于验证「反之亦然」：英文候选右侧显示中文释义。
+schema:
+  schema_id: test_en
+  name: 测试英文
+  version: "0.1"
+
+engine:
+  processors:
+    - speller
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - abc_segmentor
+    - fallback_segmentor
+  translators:
+    - table_translator
+  filters:
+    - gloss_filter
+
+speller:
+  alphabet: zyxwvutsrqponmlkjihgfedcba
+
+translator:
+  dictionary: test_en
+  enable_user_dict: false
+
+gloss_filter:
+  dictionaries_zh_en: [ qingjian ]
+  dictionaries_en_zh: [ qingjian ]
