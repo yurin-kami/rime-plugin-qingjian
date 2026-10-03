@@ -1,0 +1,9 @@
+# 青简释义插件配置示例：给 luna_pinyin 方案启用 gloss_filter。
+# 复制为 <你的方案>.custom.yaml 后按需修改词典名。
+patch:
+  engine/filters/+:
+    - gloss_filter
+  gloss_filter:
+    dictionaries_zh_en: [ qingjian ]
+    dictionaries_en_zh: [ qingjian ]
+    overwrite_comment: false

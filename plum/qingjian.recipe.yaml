@@ -1,0 +1,19 @@
+# 青简释义插件的 plum 配方。
+#
+# 注意：本配方只安装「配置」与「数据」；原生插件 .so 无法由 plum 安装
+# （plum 只写 Rime 用户目录，不写 /usr/lib/rime-plugins/）。请先用
+#   ./install.sh so
+# 或发行版包安装 librime-qingjian.so，再执行本配方。
+
+recipe:
+  Rx: qingjian
+
+# 下载预编译的释义索引（示例地址，替换为你的发布地址）。
+# 若没有预编译包，改用 install.sh data 从 TSV 本地生成。
+download_files:
+  - qingjian.zh_en.bin::https://example.com/releases/qingjian.zh_en.bin
+  - qingjian.en_zh.bin::https://example.com/releases/qingjian.en_zh.bin
+
+# 安装示例配置补丁（复制到 Rime 用户目录）。
+install_files:
+  - "examples/luna_pinyin.custom.yaml"
