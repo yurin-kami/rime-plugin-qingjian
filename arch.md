@@ -76,16 +76,16 @@ engine:
     - gloss_filter        # 可加在 uniquifier 之后
 
 gloss_filter:
-  # 中→英词典，按优先级排列，先查个人词典
-  dictionaries_zh_en: [ qingjian_en ]
+  # 中→英词典，按优先级排列，先查排在前面的词典
+  dictionaries_zh_en: [ qingjian ]
   # 英→中词典
-  dictionaries_en_zh: [ qingjian_zh ]
+  dictionaries_en_zh: [ qingjian ]
   # 是否覆盖已有注释
   overwrite_comment: false
 ```
 
-词典文件解析顺序：先查用户数据目录 `<user>/qingjian/<名>/zh_en.bin`，
-再查共享数据目录 `<shared>/qingjian/<名>/zh_en.bin`。
+词典文件解析顺序：对每个名字，先查用户数据目录 `<user>/qingjian/<名>.zh_en.bin`，
+再查共享数据目录 `<shared>/qingjian/<名>.zh_en.bin`（英→中同理，后缀 `.en_zh.bin`）。
 
 ## 代码结构
 

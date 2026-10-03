@@ -31,12 +31,14 @@ def _strip_pos(sense):
     return _POS_PREFIX.sub("", sense)
 
 
-def parse_tsv(text, max_senses=2, strip_pos=False, separator=" / "):
+def parse_tsv(text, max_senses=2, strip_pos=False, separator=" / ",
+              lowercase_key=False):
     """
     解析 TSV 文本，返回按 UTF-8 字节序排好、去重后的 (词, 释义) 列表。
 
     任一行缺词或缺释义会跳过该行；释义取前 max_senses 条，
-    去掉读音（| 之后的部分），按 separator 连接。
+    去掉读音（| 之后的部分），按 separator 连接。lowercase_key 为真时
+    把词转小写（英→中词典的键为小写）。
     """
     entries = {}
     for raw in text.splitlines():
@@ -47,6 +49,8 @@ def parse_tsv(text, max_senses=2, strip_pos=False, separator=" / "):
         word = fields[0].strip()
         if not word:
             continue
+        if lowercase_key:
+            word = word.lower()
         senses = []
         for field in fields[1:]:
             sense = field.strip()
@@ -98,13 +102,16 @@ def main():
     parser.add_argument(
         "--separator", default=" / ", help="多条释义之间的连接符"
     )
+    parser.add_argument(
+        "--lowercase-key", action="store_true", help="把词转小写（英→中词典）"
+    )
     args = parser.parse_args()
 
     with open(args.input, "r", encoding="utf-8") as f:
         text = f.read()
     items = parse_tsv(
         text, max_senses=args.max_senses, strip_pos=args.strip_pos,
-        separator=args.separator,
+        separator=args.separator, lowercase_key=args.lowercase_key,
     )
     build_bin(items, args.output)
     print(f"已写入 {args.output}：{len(items)} 条")
