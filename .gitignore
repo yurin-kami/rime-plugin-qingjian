@@ -15,3 +15,7 @@ node_modules/
 docs/
 !README.md
 !arch.md
+# 生成的释义索引与数据（大文件，由工具生成）
+data/
+*.bin
+*.qj

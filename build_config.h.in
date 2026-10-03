@@ -1,0 +1,10 @@
+#ifndef RIME_BUILD_CONFIG_H_
+#define RIME_BUILD_CONFIG_H_
+
+// 与已安装的 librime 保持一致（其链接了 glog，故启用日志宏）。
+#define RIME_ENABLE_LOGGING
+
+// 插件目录名，与 rime.pc 的 pluginsdir 一致（/usr/lib/rime-plugins）。
+#define RIME_PLUGINS_DIR "@RIME_PLUGINS_DIR@"
+
+#endif  // RIME_BUILD_CONFIG_H_
