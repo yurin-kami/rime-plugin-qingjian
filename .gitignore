@@ -1,0 +1,17 @@
+# 分析用外部仓库克隆（不进历史）
+.analysis/
+.worktrees/
+# 构建产物
+build/
+dist/
+*.o
+*.so
+*.a
+.cache/
+__pycache__/
+*.pyc
+node_modules/
+# 文档（除 arch 与 readme 外不进历史，但仍持久化在磁盘）
+docs/
+!README.md
+!arch.md
