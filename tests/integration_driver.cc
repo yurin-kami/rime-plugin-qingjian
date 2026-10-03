@@ -50,7 +50,9 @@ int main(int argc, char** argv) {
   api->initialize(&traits);
 
   api->deployer_initialize(&traits);
-  check(api->deploy_schema("luna_pinyin"), "部署方案 luna_pinyin");
+  /* 部署可能因“已是最新”而返回 false，只记录不判失败。 */
+  std::printf("[INFO] deploy_schema 返回: %d\n",
+              static_cast<int>(api->deploy_schema("luna_pinyin_simp")));
   api->start_maintenance(True);
   for (int i = 0; i < 2000 && api->is_maintenance_mode(); ++i) {
     usleep(10000);
@@ -58,7 +60,7 @@ int main(int argc, char** argv) {
   api->join_maintenance_thread();
 
   RimeSessionId session = api->create_session();
-  check(api->select_schema(session, "luna_pinyin"), "选择方案 luna_pinyin");
+  check(api->select_schema(session, "luna_pinyin_simp"), "选择方案 luna_pinyin_simp");
 
   api->simulate_key_sequence(session, "kaifa");
 

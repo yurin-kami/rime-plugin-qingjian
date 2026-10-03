@@ -91,7 +91,8 @@ void GlossFilter::Initialize() {
 }
 
 rime::an<rime::Translation> GlossFilter::Apply(
-    rime::an<rime::Translation> translation, rime::CandidateList* candidates) {
+    rime::an<rime::Translation> translation,
+    rime::CandidateList* /*candidates*/) {
   if (!initialized_) {
     Initialize();
   }

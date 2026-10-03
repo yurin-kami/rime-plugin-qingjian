@@ -11,7 +11,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLUGIN_SO="${REPO_DIR}/librime-qingjian.so"
-RIME_LIB="$(ldconfig -p | awk '/librime\.so /{print $NF; exit}')"
+RIME_LIB="$(pkg-config --variable=libdir rime 2>/dev/null)/librime.so"
 
 [[ -f "${PLUGIN_SO}" ]] || { echo "先执行 make so 生成 ${PLUGIN_SO}" >&2; exit 1; }
 [[ -n "${RIME_LIB}" && -f "${RIME_LIB}" ]] || { echo "找不到 librime.so" >&2; exit 1; }
@@ -21,16 +21,17 @@ trap 'rm -rf "${TMP}"' EXIT
 
 mkdir -p "${TMP}/lib/rime-plugins" "${TMP}/user/qingjian" "${TMP}/build"
 
-# 复制 librime 到临时目录，使 plugins 模块从 ${TMP}/lib/rime-plugins 加载。
-cp -L "${RIME_LIB}" "${TMP}/lib/librime.so"
+# 复制 librime 到临时目录（按 SONAME 命名，使 LD_LIBRARY_PATH 覆盖生效），
+# 从而使 plugins 模块从 ${TMP}/lib/rime-plugins 加载。
+cp -L "${RIME_LIB}" "${TMP}/lib/librime.so.1"
 cp "${PLUGIN_SO}" "${TMP}/lib/rime-plugins/librime-qingjian.so"
 
 # 释义数据装到用户目录。
 cp "${REPO_DIR}/data/qingjian/qingjian.zh_en.bin" "${TMP}/user/qingjian/"
 cp "${REPO_DIR}/data/qingjian/qingjian.en_zh.bin" "${TMP}/user/qingjian/"
 
-# 给 luna_pinyin 加 gloss_filter 补丁。
-cat > "${TMP}/user/luna_pinyin.custom.yaml" <<'EOF'
+# 给 luna_pinyin_simp 加 gloss_filter 补丁。
+cat > "${TMP}/user/luna_pinyin_simp.custom.yaml" <<'EOF'
 patch:
   engine/filters/+:
     - gloss_filter

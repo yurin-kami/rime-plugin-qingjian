@@ -21,7 +21,7 @@ TEST_BIN := $(patsubst tests/%.cc,build/%,$(TEST_SRC))
 PLUGIN_SRC := src/gloss_filter.cc src/module.cc
 PLUGIN_OBJ_DEPS := $(PURE_SRC) src/gloss_filter.h src/gloss_dictionary.h src/gloss_bin.h
 
-RIME_INC := -Ibuild -I$(RIME_SRC)/src -I$(RIME_SRC)/include
+RIME_INC := -Ibuild -isystem $(RIME_SRC)/src -isystem $(RIME_SRC)/include
 
 .PHONY: all test test-py test-data check so test-integration clean
 
@@ -64,8 +64,9 @@ test-integration: so
 	bash tests/run_integration.sh
 
 # 编译插件 .so：需要 librime 内部头、boost 头，链接 -lrime -lglog。
+# -DGLOG_USE_GLOG_EXPORT：新版 glog 要求，见其 logging.h 的导出宏检查。
 so: build/rime/build_config.h $(PLUGIN_OBJ_DEPS)
-	$(CXX) $(CXXFLAGS) -fPIC -shared $(RIME_INC) \
+	$(CXX) $(CXXFLAGS) -fPIC -shared -DGLOG_USE_GLOG_EXPORT $(RIME_INC) \
 		$(PLUGIN_SRC) $(PURE_SRC) -o librime-qingjian.so -lrime -lglog
 
 clean:
