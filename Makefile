@@ -15,7 +15,7 @@ CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra
 RIME_SRC ?= .analysis/librime
 
 PURE_SRC := $(wildcard src/gloss_bin.cc src/gloss_dictionary.cc)
-TEST_SRC := $(wildcard tests/test_*.cc)
+TEST_SRC := $(filter-out tests/test_gloss_fixture.cc,$(wildcard tests/test_*.cc))
 TEST_BIN := $(patsubst tests/%.cc,build/%,$(TEST_SRC))
 
 PLUGIN_SRC := src/gloss_filter.cc src/module.cc
@@ -23,7 +23,7 @@ PLUGIN_OBJ_DEPS := $(PURE_SRC) src/gloss_filter.h src/gloss_dictionary.h src/glo
 
 RIME_INC := -Ibuild -I$(RIME_SRC)/src -I$(RIME_SRC)/include
 
-.PHONY: all test so clean
+.PHONY: all test test-py test-data check so clean
 
 all: test
 
@@ -40,6 +40,24 @@ build/%: tests/%.cc $(PURE_SRC) tests/minitest.h
 
 test: $(TEST_BIN)
 	@set -e; for t in $(TEST_BIN); do echo "== $$t =="; $$t; done
+
+# Python 单测（TSV 解析与二进制写入）。
+test-py:
+	python3 -m unittest tests.test_build_gloss -v
+
+# 跨语言对拍：Python 生成样本索引，C++ 读回校验。
+build/sample.bin: tests/fixtures/sample.tsv tools/build_gloss.py
+	@mkdir -p build
+	python3 tools/build_gloss.py tests/fixtures/sample.tsv build/sample.bin
+
+build/test_gloss_fixture: tests/test_gloss_fixture.cc $(PURE_SRC) tests/minitest.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -I. -Itests tests/test_gloss_fixture.cc $(PURE_SRC) -o $@
+
+test-data: build/test_gloss_fixture build/sample.bin
+	build/test_gloss_fixture build/sample.bin
+
+check: test test-py test-data
 
 # 编译插件 .so：需要 librime 内部头、boost 头，链接 -lrime -lglog。
 so: build/rime/build_config.h $(PLUGIN_OBJ_DEPS)
