@@ -6,8 +6,6 @@
  */
 #include "gloss_filter.h"
 
-#include <cctype>
-
 #include <rime/candidate.h>
 #include <rime/common.h>
 #include <rime/config.h>
@@ -17,29 +15,11 @@
 #include <rime/schema.h>
 #include <rime/service.h>
 
+#include "gloss_direction.h"
+
 namespace qingjian {
 
 namespace {
-
-/* 文本是否全为 ASCII（据此判定英文候选）。 */
-bool IsAscii(std::string_view text) {
-  for (unsigned char c : text) {
-    if (c >= 0x80) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/* ASCII 转小写（词典里英文键为小写）。 */
-std::string ToLower(std::string_view text) {
-  std::string lower;
-  lower.reserve(text.size());
-  for (unsigned char c : text) {
-    lower.push_back(static_cast<char>(std::tolower(c)));
-  }
-  return lower;
-}
 
 /* 读取配置里的字符串列表到 out。 */
 void ReadStringList(rime::Config* config, const std::string& path,
@@ -112,8 +92,8 @@ rime::an<rime::Candidate> GlossFilter::Annotate(
   }
   std::string_view text = cand->text();
   std::optional<std::string_view> gloss;
-  if (IsAscii(text)) {
-    gloss = en_zh_.Lookup(ToLower(text));
+  if (Classify(text) == GlossDirection::kEnZh) {
+    gloss = en_zh_.Lookup(AsciiLower(text));
   } else {
     gloss = zh_en_.Lookup(text);
   }
