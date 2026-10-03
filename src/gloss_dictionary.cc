@@ -1,6 +1,7 @@
-/* GlossDictionary 实现：按优先级顺序加载与查找。 */
+/* GlossDictionary 实现：按优先级顺序加载、查找，以及词典路径解析。 */
 #include "gloss_dictionary.h"
 
+#include <filesystem>
 #include <utility>
 
 namespace qingjian {
@@ -25,6 +26,24 @@ std::optional<std::string_view> GlossDictionary::Lookup(
     }
   }
   return std::nullopt;
+}
+
+std::vector<std::string> ResolveGlossPaths(
+    const std::vector<std::string>& base_dirs,
+    const std::vector<std::string>& names,
+    const std::string& suffix) {
+  std::vector<std::string> result;
+  for (const std::string& name : names) {
+    for (const std::string& dir : base_dirs) {
+      std::filesystem::path candidate =
+          std::filesystem::path(dir) / (name + "." + suffix);
+      if (std::filesystem::exists(candidate)) {
+        result.push_back(candidate.string());
+        break;
+      }
+    }
+  }
+  return result;
 }
 
 }  // namespace qingjian

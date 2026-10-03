@@ -7,7 +7,9 @@
 #include "../src/gloss_dictionary.h"
 
 #include <cstdio>
+#include <filesystem>
 #include <string>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -58,6 +60,26 @@ TEST(全部加载失败为空) {
            static_cast<size_t>(0));
   CHECK(dict.empty());
   CHECK(!dict.Lookup("开发").has_value());
+}
+
+TEST(路径解析用户目录优先) {
+  std::string pid = std::to_string(static_cast<long long>(getpid()));
+  std::string user = "/tmp/qj_user_" + pid;
+  std::string shared = "/tmp/qj_shared_" + pid;
+  std::filesystem::create_directories(user);
+  std::filesystem::create_directories(shared);
+  build_gloss(user + "/a.zh_en.bin", {{"开发", "user"}});
+  build_gloss(shared + "/a.zh_en.bin", {{"开发", "shared"}});
+  build_gloss(shared + "/b.zh_en.bin", {{"中文", "Chinese"}});
+
+  std::vector<std::string> paths = qingjian::ResolveGlossPaths(
+      {user, shared}, {"a", "b", "missing"}, "zh_en.bin");
+  CHECK_EQ(paths.size(), static_cast<size_t>(2));
+  CHECK_EQ(paths[0], user + "/a.zh_en.bin");
+  CHECK_EQ(paths[1], shared + "/b.zh_en.bin");
+
+  std::filesystem::remove_all(user);
+  std::filesystem::remove_all(shared);
 }
 
 TEST_MAIN()

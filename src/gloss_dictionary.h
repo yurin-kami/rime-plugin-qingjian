@@ -33,4 +33,17 @@ class GlossDictionary {
   std::vector<GlossBin> bins_;
 };
 
+/*
+ * 把词典名解析成索引文件路径。
+ *
+ * 规则：按 names 顺序，对每个名字依次在 base_dirs 里找
+ * "<目录>/<名字>.<suffix>"，取第一个存在的文件；结果顺序等于名字的
+ * 优先级顺序。base_dirs 顺序即「同名时目录越靠前越优先」（如用户目录
+ * 优先于共享目录）。
+ */
+std::vector<std::string> ResolveGlossPaths(
+    const std::vector<std::string>& base_dirs,
+    const std::vector<std::string>& names,
+    const std::string& suffix);
+
 }  // namespace qingjian
