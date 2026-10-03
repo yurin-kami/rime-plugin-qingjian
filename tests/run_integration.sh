@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# 集成测试：在临时环境里加载插件 .so，驱动真实输入，验证候选注释。
+#
+# 前置：已执行 make so（产出 librime-qingjian.so），系统已装 librime 与
+# rime-luna-pinyin。无需 root（用 LD_LIBRARY_PATH 指向临时 librime 副本，
+# 使 plugins 模块从临时目录加载插件）。
+#
+# 用法：tests/run_integration.sh
+
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PLUGIN_SO="${REPO_DIR}/librime-qingjian.so"
+RIME_LIB="$(ldconfig -p | awk '/librime\.so /{print $NF; exit}')"
+
+[[ -f "${PLUGIN_SO}" ]] || { echo "先执行 make so 生成 ${PLUGIN_SO}" >&2; exit 1; }
+[[ -n "${RIME_LIB}" && -f "${RIME_LIB}" ]] || { echo "找不到 librime.so" >&2; exit 1; }
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "${TMP}"' EXIT
+
+mkdir -p "${TMP}/lib/rime-plugins" "${TMP}/user/qingjian" "${TMP}/build"
+
+# 复制 librime 到临时目录，使 plugins 模块从 ${TMP}/lib/rime-plugins 加载。
+cp -L "${RIME_LIB}" "${TMP}/lib/librime.so"
+cp "${PLUGIN_SO}" "${TMP}/lib/rime-plugins/librime-qingjian.so"
+
+# 释义数据装到用户目录。
+cp "${REPO_DIR}/data/qingjian/qingjian.zh_en.bin" "${TMP}/user/qingjian/"
+cp "${REPO_DIR}/data/qingjian/qingjian.en_zh.bin" "${TMP}/user/qingjian/"
+
+# 给 luna_pinyin 加 gloss_filter 补丁。
+cat > "${TMP}/user/luna_pinyin.custom.yaml" <<'EOF'
+patch:
+  engine/filters/+:
+    - gloss_filter
+  gloss_filter:
+    dictionaries_zh_en: [ qingjian ]
+    dictionaries_en_zh: [ qingjian ]
+    overwrite_comment: false
+EOF
+
+# 编译驱动（只用公开 API，无需 boost）。
+g++ -std=c++17 -O2 "${REPO_DIR}/tests/integration_driver.cc" -o "${TMP}/driver" -lrime
+
+SHARED_DIR="$(dirname "$(dirname "${RIME_LIB}")")/share/rime-data"
+[[ -d "${SHARED_DIR}" ]] || SHARED_DIR="/usr/share/rime-data"
+
+echo "== 运行集成测试 =="
+LD_LIBRARY_PATH="${TMP}/lib" "${TMP}/driver" "${SHARED_DIR}" "${TMP}/user"

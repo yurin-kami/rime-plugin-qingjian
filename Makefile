@@ -23,7 +23,7 @@ PLUGIN_OBJ_DEPS := $(PURE_SRC) src/gloss_filter.h src/gloss_dictionary.h src/glo
 
 RIME_INC := -Ibuild -I$(RIME_SRC)/src -I$(RIME_SRC)/include
 
-.PHONY: all test test-py test-data check so clean
+.PHONY: all test test-py test-data check so test-integration clean
 
 all: test
 
@@ -58,6 +58,10 @@ test-data: build/test_gloss_fixture build/sample.bin
 	build/test_gloss_fixture build/sample.bin
 
 check: test test-py test-data
+
+# 集成测试：编译 .so 后，在临时环境加载并驱动真实输入验证候选注释。
+test-integration: so
+	bash tests/run_integration.sh
 
 # 编译插件 .so：需要 librime 内部头、boost 头，链接 -lrime -lglog。
 so: build/rime/build_config.h $(PLUGIN_OBJ_DEPS)
