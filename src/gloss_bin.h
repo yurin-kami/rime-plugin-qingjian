@@ -35,27 +35,37 @@ class GlossBin {
   /* 打开并映射文件；失败返回 false，原因见 last_error()。 */
   bool Open(const std::string& path);
 
-  /* 查词：命中返回 value，未命中返回 nullopt。 */
+  /* 查词：命中返回 value（指向映射内存），未命中返回 nullopt。 */
   std::optional<std::string_view> Lookup(std::string_view key) const;
 
   /* 条目数。 */
   size_t size() const { return count_; }
+
+  /* 是否没有条目。 */
   bool empty() const { return count_ == 0; }
 
   /* 是否已成功打开。 */
   explicit operator bool() const { return data_ != nullptr; }
 
+  /* 最近一次 Open 失败的原因。 */
   const std::string& last_error() const { return error_; }
 
  private:
+  /* 释放 mmap 映射并清空内部状态。 */
   void Reset();
 
-  uint8_t* data_ = nullptr;    /* mmap 基址 */
-  size_t data_len_ = 0;        /* 映射字节数 */
-  uint64_t count_ = 0;         /* 条目数 */
-  const uint8_t* entries_ = nullptr;  /* 索引区基址 */
-  const uint8_t* arena_ = nullptr;    /* 字符串池基址 */
+  /* mmap 基址 */
+  uint8_t* data_ = nullptr;
+  /* 映射字节数 */
+  size_t data_len_ = 0;
+  /* 条目数 */
+  uint64_t count_ = 0;
+  /* 索引区基址 */
+  const uint8_t* entries_ = nullptr;
+  /* 字符串池基址 */
+  const uint8_t* arena_ = nullptr;
+  /* 最近一次错误信息 */
   std::string error_;
 };
 
-}  // namespace qingjian
+}

@@ -10,6 +10,7 @@
 
 #include <string_view>
 
+/* 由命令行传入的样本索引路径，供用例读取。 */
 const char* g_bin_path = nullptr;
 
 TEST(读回Python生成的索引) {
@@ -22,6 +23,7 @@ TEST(读回Python生成的索引) {
   CHECK(!bin.Lookup("不存在").has_value());
 }
 
+/* 入口：把首个参数当作样本路径，然后运行全部用例。 */
 int main(int argc, char** argv) {
   if (argc < 2) {
     std::printf("用法: %s <gloss.bin>\n", argv[0]);

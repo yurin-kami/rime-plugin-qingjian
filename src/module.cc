@@ -12,11 +12,13 @@
 
 using namespace rime;
 
+/* 模块初始化：向 Registry 注册 gloss_filter 组件。 */
 static void rime_qingjian_initialize() {
   Registry& r = Registry::instance();
   r.Register("gloss_filter", new Component<qingjian::GlossFilter>);
 }
 
+/* 模块清理：组件由 Registry 统一销毁，无需额外处理。 */
 static void rime_qingjian_finalize() {}
 
 RIME_REGISTER_MODULE(qingjian)

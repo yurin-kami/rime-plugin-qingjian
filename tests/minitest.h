@@ -22,11 +22,13 @@ struct Case {
   std::function<void()> fn;
 };
 
+/* 返回全局用例表（单例）。 */
 inline std::vector<Case>& cases() {
   static std::vector<Case> all;
   return all;
 }
 
+/* 注册一个用例到全局用例表。 */
 struct Registrar {
   Registrar(const std::string& name, std::function<void()> fn) {
     cases().push_back(Case{name, std::move(fn)});
@@ -52,14 +54,16 @@ inline int run_all() {
   return failed;
 }
 
-}  // namespace minitest
+}
 
+/* 定义一个用例：注册函数并生成静态初始化器。 */
 #define TEST(name)                                                     \
   static void minitest_fn_##name();                                    \
   static ::minitest::Registrar minitest_reg_##name(#name,             \
                                                     minitest_fn_##name); \
   static void minitest_fn_##name()
 
+/* 每个测试文件的入口：运行全部用例。 */
 #define TEST_MAIN()                                  \
   int main() { return ::minitest::run_all(); }
 

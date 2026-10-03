@@ -12,9 +12,14 @@
 
 namespace qingjian {
 
+/*
+ * 释义方向：
+ *   kEnZh  英文候选 → 查英→中词典
+ *   kZhEn  中文候选 → 查中→英词典
+ */
 enum class GlossDirection {
-  kEnZh,  /* 英文候选 → 查英→中词典 */
-  kZhEn,  /* 中文候选 → 查中→英词典 */
+  kEnZh,
+  kZhEn,
 };
 
 /* 判定文本的释义方向。 */
@@ -37,4 +42,4 @@ inline std::string AsciiLower(std::string_view text) {
   return lower;
 }
 
-}  // namespace qingjian
+}

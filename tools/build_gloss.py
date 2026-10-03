@@ -92,6 +92,7 @@ def build_bin(items, path):
 
 
 def main():
+    """解析命令行参数，把 TSV 转成 gloss.bin。"""
     parser = argparse.ArgumentParser(
         description="把青简释义表 TSV 转成二进制索引 gloss.bin"
     )

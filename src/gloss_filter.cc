@@ -19,6 +19,7 @@
 
 namespace qingjian {
 
+/* 文件内使用的工具函数。 */
 namespace {
 
 /* 读取配置里的字符串列表到 out。 */
@@ -37,15 +38,16 @@ void ReadStringList(rime::Config* config, const std::string& path,
   }
 }
 
-}  // namespace
+}
 
+/* 构造：组件未带别名时，配置命名空间固定为 gloss_filter。 */
 GlossFilter::GlossFilter(const rime::Ticket& ticket) : rime::Filter(ticket) {
-  /* 组件未带别名时，配置命名空间固定为 gloss_filter。 */
   if (ticket.name_space == "filter") {
     name_space_ = "gloss_filter";
   }
 }
 
+/* 读配置并加载两个方向的词典。 */
 void GlossFilter::Initialize() {
   initialized_ = true;
   if (!engine_) {
@@ -70,6 +72,7 @@ void GlossFilter::Initialize() {
   en_zh_.Load(ResolveGlossPaths(dirs, en_names, "en_zh.bin"));
 }
 
+/* 惰性初始化后，用包装 Translation 接管后续候选。 */
 rime::an<rime::Translation> GlossFilter::Apply(
     rime::an<rime::Translation> translation,
     rime::CandidateList* /*candidates*/) {
@@ -82,6 +85,7 @@ rime::an<rime::Translation> GlossFilter::Apply(
   return rime::New<GlossFilterTranslation>(translation, this);
 }
 
+/* 给单条候选查词并写入注释，查不到或已有注释则不修改。 */
 rime::an<rime::Candidate> GlossFilter::Annotate(
     rime::an<rime::Candidate> cand) {
   if (!cand) {
@@ -112,6 +116,7 @@ rime::an<rime::Candidate> GlossFilter::Annotate(
   return cand;
 }
 
+/* 取出一条候选并打注释。 */
 rime::an<rime::Candidate> GlossFilterTranslation::Peek() {
   rime::an<rime::Candidate> cand = CacheTranslation::Peek();
   if (cand) {
@@ -120,4 +125,4 @@ rime::an<rime::Candidate> GlossFilterTranslation::Peek() {
   return cand;
 }
 
-}  // namespace qingjian
+}

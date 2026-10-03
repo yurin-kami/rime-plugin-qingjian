@@ -30,6 +30,7 @@ class GlossDictionary {
   bool empty() const { return bins_.empty(); }
 
  private:
+  /* 按优先级排列的索引文件。 */
   std::vector<GlossBin> bins_;
 };
 
@@ -46,4 +47,4 @@ std::vector<std::string> ResolveGlossPaths(
     const std::vector<std::string>& names,
     const std::string& suffix);
 
-}  // namespace qingjian
+}

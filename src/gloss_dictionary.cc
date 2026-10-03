@@ -1,4 +1,6 @@
-/* GlossDictionary 实现：按优先级顺序加载、查找，以及词典路径解析。 */
+/*
+ * GlossDictionary 实现：按优先级顺序加载、查找，以及词典路径解析。
+ */
 #include "gloss_dictionary.h"
 
 #include <filesystem>
@@ -6,6 +8,7 @@
 
 namespace qingjian {
 
+/* 按优先级加载索引文件，失败文件跳过，返回成功数量。 */
 size_t GlossDictionary::Load(const std::vector<std::string>& paths) {
   bins_.clear();
   for (const std::string& path : paths) {
@@ -17,6 +20,7 @@ size_t GlossDictionary::Load(const std::vector<std::string>& paths) {
   return bins_.size();
 }
 
+/* 按优先级返回第一个命中的 value。 */
 std::optional<std::string_view> GlossDictionary::Lookup(
     std::string_view key) const {
   for (const GlossBin& bin : bins_) {
@@ -28,6 +32,7 @@ std::optional<std::string_view> GlossDictionary::Lookup(
   return std::nullopt;
 }
 
+/* 把词典名按优先级解析成存在的文件路径。 */
 std::vector<std::string> ResolveGlossPaths(
     const std::vector<std::string>& base_dirs,
     const std::vector<std::string>& names,
@@ -46,4 +51,4 @@ std::vector<std::string> ResolveGlossPaths(
   return result;
 }
 
-}  // namespace qingjian
+}

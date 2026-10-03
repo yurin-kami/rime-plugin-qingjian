@@ -15,26 +15,30 @@
 
 namespace qingjian {
 
+/* 文件内使用的常量与小端整数读取工具。 */
 namespace {
 
 constexpr size_t kHeaderSize = 16;
 constexpr size_t kEntrySize = 16;
 constexpr const char kMagic[8] = {'Q', 'J', 'G', 'L', 'O', 'S', 'S', '1'};
 
-/* 小端读取无符号整数（文件格式约定为小端）。 */
+/* 小端读取无符号 32 位整数。 */
 uint32_t read_u32_le(const uint8_t* p) {
   return uint32_t(p[0]) | (uint32_t(p[1]) << 8) |
          (uint32_t(p[2]) << 16) | (uint32_t(p[3]) << 24);
 }
 
+/* 小端读取无符号 64 位整数。 */
 uint64_t read_u64_le(const uint8_t* p) {
   return uint64_t(read_u32_le(p)) | (uint64_t(read_u32_le(p + 4)) << 32);
 }
 
-}  // namespace
+}
 
+/* 析构：释放 mmap 映射。 */
 GlossBin::~GlossBin() { Reset(); }
 
+/* 移动构造：接管对方的映射，并把对方置空。 */
 GlossBin::GlossBin(GlossBin&& other) noexcept {
   data_ = other.data_;
   data_len_ = other.data_len_;
@@ -49,6 +53,7 @@ GlossBin::GlossBin(GlossBin&& other) noexcept {
   other.arena_ = nullptr;
 }
 
+/* 移动赋值：先释放自身映射，再接管对方。 */
 GlossBin& GlossBin::operator=(GlossBin&& other) noexcept {
   if (this != &other) {
     Reset();
@@ -67,6 +72,7 @@ GlossBin& GlossBin::operator=(GlossBin&& other) noexcept {
   return *this;
 }
 
+/* 释放映射并复位所有字段。 */
 void GlossBin::Reset() {
   if (data_ != nullptr) {
     munmap(data_, data_len_);
@@ -79,6 +85,7 @@ void GlossBin::Reset() {
   error_.clear();
 }
 
+/* 打开并映射文件，校验 magic 与索引区边界。 */
 bool GlossBin::Open(const std::string& path) {
   Reset();
   int fd = ::open(path.c_str(), O_RDONLY);
@@ -119,6 +126,7 @@ bool GlossBin::Open(const std::string& path) {
   return true;
 }
 
+/* 二分查找：命中返回 value，未命中返回 nullopt。 */
 std::optional<std::string_view> GlossBin::Lookup(std::string_view key) const {
   if (data_ == nullptr) {
     return std::nullopt;
@@ -148,4 +156,4 @@ std::optional<std::string_view> GlossBin::Lookup(std::string_view key) const {
   return std::nullopt;
 }
 
-}  // namespace qingjian
+}

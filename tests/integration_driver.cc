@@ -15,8 +15,10 @@
 
 namespace {
 
+/* 失败用例计数。 */
 int g_failures = 0;
 
+/* 记录一个检查结果，失败时累计。 */
 void check(bool cond, const char* what) {
   if (cond) {
     std::printf("[PASS] %s\n", what);
@@ -52,8 +54,9 @@ bool check_comment(RimeApi* api, RimeSessionId session, const char* keys,
   return found;
 }
 
-}  // namespace
+}
 
+/* 初始化 librime、部署方案、分别跑中→英与英→中两个场景。 */
 int main(int argc, char** argv) {
   if (argc < 3) {
     std::printf("用法: %s <shared_data_dir> <user_data_dir>\n", argv[0]);

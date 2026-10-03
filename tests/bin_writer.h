@@ -15,7 +15,7 @@
 
 namespace qingjian_test {
 
-/* 小端写无符号整数到字节缓冲。 */
+/* 小端写无符号 32 位整数到字节缓冲。 */
 inline void push_u32_le(std::vector<uint8_t>& buf, uint32_t v) {
   buf.push_back(static_cast<uint8_t>(v & 0xff));
   buf.push_back(static_cast<uint8_t>((v >> 8) & 0xff));
@@ -23,6 +23,7 @@ inline void push_u32_le(std::vector<uint8_t>& buf, uint32_t v) {
   buf.push_back(static_cast<uint8_t>((v >> 24) & 0xff));
 }
 
+/* 小端写无符号 64 位整数到字节缓冲。 */
 inline void push_u64_le(std::vector<uint8_t>& buf, uint64_t v) {
   push_u32_le(buf, static_cast<uint32_t>(v & 0xffffffff));
   push_u32_le(buf, static_cast<uint32_t>(v >> 32));
@@ -62,4 +63,4 @@ inline std::string temp_path(const char* tag) {
          std::to_string(static_cast<long long>(getpid())) + ".bin";
 }
 
-}  // namespace qingjian_test
+}
