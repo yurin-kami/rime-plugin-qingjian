@@ -1,7 +1,5 @@
 # Rime 青简释义插件
 
-[![CI](https://github.com/yurin-kami/rime-plugin-qingjian/actions/workflows/ci.yml/badge.svg)](https://github.com/yurin-kami/rime-plugin-qingjian/actions/workflows/ci.yml)
-
 把[青简](https://qingjian.app)输入法的招牌功能做成 Rime 插件：输入中文时，
 候选词右侧显示对应的英文释义；输入英文时，右侧显示中文释义。释义始终是辅助
 信息，不改动候选本身与选词逻辑。
@@ -26,20 +24,40 @@
 
 ## 依赖
 
-- 运行时：librime ≥ 1.0（本机已装 1.17）。
-- 构建：`g++`（C++17）、`boost` 头文件（`pacman -S boost`）、librime 源码树
-  （供内部头文件，见 Makefile 的 `RIME_SRC`）。
-- 数据生成：Python 3（仅 `install.sh` 生成数据时用）。
+编译插件（`make so`）需要以下开发包；单元测试（`make check`）只需 `g++` 与
+`python3`。此外还需 librime 源码树（内部头文件，见下）。
+
+| 依赖 | Arch (pacman) | Ubuntu/Debian (apt) | Fedora (dnf) | macOS (Homebrew) |
+| --- | --- | --- | --- | --- |
+| 编译工具链 | base-devel python | build-essential python3 | gcc-c++ make python3 | Xcode 命令行工具 |
+| boost | boost | libboost-all-dev | boost-devel | boost |
+| glog | glog | libgoogle-glog-dev | glog-devel | glog |
+| yaml-cpp | yaml-cpp | libyaml-cpp-dev | yaml-cpp-devel | yaml-cpp |
+| leveldb | leveldb | libleveldb-dev | leveldb-devel | leveldb |
+| marisa | marisa | libmarisa-dev | marisa-devel | marisa |
+| opencc | opencc | libopencc-dev | opencc-devel | opencc |
+| librime（链接） | librime | librime-dev | librime-devel | librime |
+
+librime 内部头不随发行版分发，须克隆源码树供 `make so` 使用（默认
+`RIME_SRC=.analysis/librime`，可用变量覆盖）：
+
+```bash
+git clone --depth 1 https://github.com/rime/librime .analysis/librime
+```
 
 ## 安装
 
-一键安装（需要 root 安装 `.so`，数据装到用户目录无需 root）：
+先按上表装好依赖并克隆 librime 源码树，再一键构建安装（`.so` 需 root，
+数据装到用户目录无需 root）：
 
 ```bash
-# 先装构建依赖（仅编译 .so 需要）
-sudo pacman -S boost
+# 依赖（示例：Ubuntu；其他发行版见上表）
+# sudo apt install -y build-essential python3 libboost-all-dev libgoogle-glog-dev \
+#   libyaml-cpp-dev libleveldb-dev libmarisa-dev libopencc-dev librime-dev
 
-# 下载青简释义表，然后构建并安装
+git clone --depth 1 https://github.com/rime/librime .analysis/librime
+
+# 下载青简释义表后构建安装
 ./install.sh all --tsv-dir /path/to/qingjian/assets/glossary
 ```
 
