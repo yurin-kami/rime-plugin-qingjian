@@ -61,7 +61,7 @@ brew install boost glog yaml-cpp leveldb marisa opencc librime
 [vcpkg](https://github.com/microsoft/vcpkg)，然后装依赖：
 
 ```powershell
-vcpkg install boost glog yaml-cpp leveldb marisa-trie opencc --triplet x64-windows
+vcpkg install boost glog yaml-cpp leveldb marisa-trie opencc --triplet x64-windows-static
 ```
 
 Windows 用 CMake 构建（见下方「开发」），还需要一份应用了本仓库补丁的 librime 源码树。
@@ -170,7 +170,8 @@ cmake --build build-plugin --config Release
 ```powershell
 git -C <librime源码树> apply <本仓库>/patches/librime-windows-plugin-loading.patch
 cmake -S <librime源码树> -B <librime源码树>/build -A x64 `
-  -DCMAKE_TOOLCHAIN_FILE=<vcpkg.cmake> -DENABLE_EXTERNAL_PLUGINS=ON
+  -DCMAKE_TOOLCHAIN_FILE=<vcpkg.cmake> -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+  -DBUILD_STATIC=ON -DENABLE_EXTERNAL_PLUGINS=ON
 cmake --build <librime源码树>/build --config Release
 ```
 

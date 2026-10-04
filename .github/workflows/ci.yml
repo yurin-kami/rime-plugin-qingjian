@@ -65,7 +65,7 @@ jobs:
         timeout-minutes: 60
         run: |
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install `
-            boost glog yaml-cpp leveldb marisa-trie opencc --triplet x64-windows
+            boost glog yaml-cpp leveldb marisa-trie opencc --triplet x64-windows-static
 
       - name: 克隆并修补 librime（MSVC）
         run: |
@@ -73,8 +73,9 @@ jobs:
           git -C .analysis/librime apply "$env:GITHUB_WORKSPACE/patches/librime-windows-plugin-loading.patch"
           cmake -S .analysis/librime -B .analysis/librime/build -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DBUILD_TEST=OFF -DBUILD_DATA=OFF -DBUILD_SAMPLE=OFF `
-            -DENABLE_EXTERNAL_PLUGINS=ON
+            -DBUILD_STATIC=ON -DENABLE_EXTERNAL_PLUGINS=ON
           cmake --build .analysis/librime/build --config Release
 
       - name: 构建插件 DLL
@@ -84,6 +85,7 @@ jobs:
           Write-Output "使用 rime.lib: $rimeLib"
           cmake -S . -B build-plugin -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DBUILD_PLUGIN=ON `
             -DRIME_SRC="$env:GITHUB_WORKSPACE/.analysis/librime" `
             -DRIME_LIBRARY="$rimeLib"
