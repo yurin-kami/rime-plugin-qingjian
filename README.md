@@ -127,3 +127,7 @@ make so       # 编译 librime-qingjian.so（需 boost 与 RIME_SRC）
 ## 许可
 
 GPL-3.0-or-later（与默认词典数据一致）。
+
+## 致谢
+
+候选释义数据与释义显示功能参考自[青简](https://qingjian.app)输入法（[qingjian-team/qingjian](https://github.com/qingjian-team/qingjian)），在此致谢。
