@@ -1,5 +1,7 @@
 # Rime 青简释义插件
 
+[![CI](https://github.com/yurin-kami/rime-plugin-qingjian/actions/workflows/ci.yml/badge.svg)](https://github.com/yurin-kami/rime-plugin-qingjian/actions/workflows/ci.yml)
+
 把[青简](https://qingjian.app)输入法的招牌功能做成 Rime 插件：输入中文时，
 候选词右侧显示对应的英文释义；输入英文时，右侧显示中文释义。释义始终是辅助
 信息，不改动候选本身与选词逻辑。
