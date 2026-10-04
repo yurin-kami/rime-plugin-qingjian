@@ -18,6 +18,7 @@
 import argparse
 import re
 import struct
+import sys
 
 MAGIC = b"QJGLOSS1"
 HEADER_SIZE = 16
@@ -115,6 +116,8 @@ def main():
         separator=args.separator, lowercase_key=args.lowercase_key,
     )
     build_bin(items, args.output)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     print(f"已写入 {args.output}：{len(items)} 条")
 
 
