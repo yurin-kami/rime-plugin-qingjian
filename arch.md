@@ -2,7 +2,7 @@
 
 ## 目标
 
-把青简输入法的招牌功能——「候选词右侧显示对应释义」——做成一个 Rime 插件：
+把青简输入法的候选释义功能——「候选词右侧显示对应释义」——做成一个 Rime 插件：
 输入中文时，候选词右侧显示对应的英文释义；输入英文时，右侧显示中文释义。
 释义始终是辅助信息，不改动候选词本体与选词逻辑。
 
@@ -13,8 +13,8 @@
 `dlopen` 加载并调用模块的 `initialize`，把组件注册进 Registry（见
 `librime/src/rime/config/plugins.cc` 与 `src/rime/gear/gears_module.cc` 的同款机制）。
 
-选择原生 `.so` 而非 Lua 插件，是为了性能与生命周期可控：释义表约 28 万条，
-用 C++ `mmap` + 二分查找是微秒级，不进入 Lua GC 堆。
+选择原生 `.so` 而非 Lua 插件：释义表约 28 万条，用 C++ `mmap` + 二分查找，
+不进入 Lua GC 堆。
 
 ## 组件：一个 Filter
 
@@ -22,7 +22,7 @@
 `engine/filters` 里。Filter 在翻译器产出候选之后、候选上屏之前运行，
 逐条读取候选文本、查释义表、把结果写进 `Candidate` 的 `comment` 字段。
 `comment` 就是前端渲染在候选右侧的那行字，ibus-rime、fcitx5-rime、小狼毫、
-鼠须管都会显示，因此插件天然跨前端。
+鼠须管都会显示，因此插件对所有前端生效。
 
 实现参考 librime 自带的 `reverse_lookup_filter`（`src/rime/gear/reverse_lookup_filter.cc`）：
 用一个 `CacheTranslation` 包装原 Translation，在 `Peek()` 里对每条候选打注释。
