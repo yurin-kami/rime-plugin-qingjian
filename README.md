@@ -24,42 +24,54 @@
 
 ## 依赖
 
-编译插件（`make so`）需要以下开发包；单元测试（`make check`）只需 `g++` 与
-`python3`。此外还需 librime 源码树（内部头文件，见下）。
+编译插件（`make so`）需要几个开发库；只跑单元测试（`make check`）的话，
+只要 `g++` 和 `python3` 就够。
 
-| 依赖 | Arch (pacman) | Ubuntu/Debian (apt) | Fedora (dnf) | macOS (Homebrew) |
-| --- | --- | --- | --- | --- |
-| 编译工具链 | base-devel python | build-essential python3 | gcc-c++ make python3 | Xcode 命令行工具 |
-| boost | boost | libboost-all-dev | boost-devel | boost |
-| glog | glog | libgoogle-glog-dev | glog-devel | glog |
-| yaml-cpp | yaml-cpp | libyaml-cpp-dev | yaml-cpp-devel | yaml-cpp |
-| leveldb | leveldb | libleveldb-dev | leveldb-devel | leveldb |
-| marisa | marisa | libmarisa-dev | marisa-devel | marisa |
-| opencc | opencc | libopencc-dev | opencc-devel | opencc |
-| librime（链接） | librime | librime-dev | librime-devel | librime |
+按你的系统装依赖（选一条）：
 
-librime 内部头不随发行版分发，须克隆源码树供 `make so` 使用（默认
-`RIME_SRC=.analysis/librime`，可用变量覆盖）：
+**Arch Linux**
+
+```bash
+sudo pacman -S --needed base-devel python boost glog yaml-cpp leveldb marisa opencc librime
+```
+
+**Ubuntu / Debian**
+
+```bash
+sudo apt install -y build-essential python3 libboost-all-dev libgoogle-glog-dev \
+  libyaml-cpp-dev libleveldb-dev libmarisa-dev libopencc-dev librime-dev
+```
+
+**Fedora**
+
+```bash
+sudo dnf install -y gcc-c++ make python3 boost-devel glog-devel \
+  yaml-cpp-devel leveldb-devel marisa-devel opencc-devel librime-devel
+```
+
+**macOS**（先装 Homebrew，并 `xcode-select --install` 装命令行工具）
+
+```bash
+brew install boost glog yaml-cpp leveldb marisa opencc librime
+```
+
+无论哪个系统，都要再克隆一份 librime 源码树（插件编译需要它的内部头文件）：
 
 ```bash
 git clone --depth 1 https://github.com/rime/librime .analysis/librime
 ```
+
+不想放到 `.analysis/` 的话，克隆到任意路径，编译时用 `make so RIME_SRC=<路径>` 指定。
 
 ## 安装
 
-先按上表装好依赖并克隆 librime 源码树，再一键构建安装（`.so` 需 root，
-数据装到用户目录无需 root）：
+装好依赖、克隆完 librime 源码树后，一条命令构建安装：
 
 ```bash
-# 依赖（示例：Ubuntu；其他发行版见上表）
-# sudo apt install -y build-essential python3 libboost-all-dev libgoogle-glog-dev \
-#   libyaml-cpp-dev libleveldb-dev libmarisa-dev libopencc-dev librime-dev
-
-git clone --depth 1 https://github.com/rime/librime .analysis/librime
-
-# 下载青简释义表后构建安装
 ./install.sh all --tsv-dir /path/to/qingjian/assets/glossary
 ```
+
+`.so` 会装到系统插件目录（需 sudo 输密码），数据装到你的 Rime 用户目录（无需 root）。
 
 `install.sh` 做的事：编译 `librime-qingjian.so` 并装到 `/usr/lib/rime-plugins/`，
 把释义表生成 `qingjian.zh_en.bin` / `qingjian.en_zh.bin` 装到 Rime 用户目录的
