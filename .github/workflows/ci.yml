@@ -1,0 +1,48 @@
+# 持续集成：每个提交/PR 都跑单元测试与插件编译。
+#
+# 生产标准对应 AGENTS.md：
+#   - make check：C++ 单测 + Python 单测 + 跨语言对拍
+#   - make so   ：编译 librime-qingjian.so，-Wall -Wextra 零警告
+#
+# 插件依赖 librime 内部头（不在发行版头包里），故从源码构建 librime
+# 后链接；单元测试是纯 C++/Python，不依赖 librime。
+
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake python3 \
+            libboost-all-dev libglog-dev libyaml-cpp-dev \
+            libleveldb-dev libmarisa-dev libopencc-dev
+
+      - name: 单元测试（make check）
+        run: make check
+
+      - name: 克隆并构建 librime
+        run: |
+          mkdir -p .analysis
+          git clone --depth 1 https://github.com/rime/librime .analysis/librime
+          cmake -S .analysis/librime -B .analysis/librime/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TEST=OFF -DBUILD_DATA=OFF
+          cmake --build .analysis/librime/build -j"$(nproc)"
+          sudo cmake --install .analysis/librime/build
+          sudo ldconfig
+
+      - name: 编译插件（零警告）
+        run: make so RIME_SRC=.analysis/librime
+
+      - name: 校验插件产物
+        run: |
+          test -f librime-qingjian.so
+          nm -D librime-qingjian.so | grep -q rime_require_module_qingjian
+          echo "librime-qingjian.so 已产出且导出模块符号"
