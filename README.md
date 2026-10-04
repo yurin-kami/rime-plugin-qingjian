@@ -61,7 +61,7 @@ brew install boost glog yaml-cpp leveldb marisa opencc librime
 [vcpkg](https://github.com/microsoft/vcpkg)，然后装依赖：
 
 ```powershell
-vcpkg install boost glog yaml-cpp leveldb marisa opencc --triplet x64-windows
+vcpkg install boost glog yaml-cpp leveldb marisa-trie opencc --triplet x64-windows
 ```
 
 Windows 用 CMake 构建（见下方「开发」），还需要一份应用了本仓库补丁的 librime 源码树。

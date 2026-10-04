@@ -65,7 +65,7 @@ jobs:
         timeout-minutes: 60
         run: |
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install `
-            boost glog yaml-cpp leveldb marisa opencc --triplet x64-windows
+            boost glog yaml-cpp leveldb marisa-trie opencc --triplet x64-windows
 
       - name: 克隆并修补 librime（MSVC）
         run: |
