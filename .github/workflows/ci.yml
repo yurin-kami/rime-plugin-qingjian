@@ -1,8 +1,8 @@
 # 持续集成：每个提交/PR 都跑单元测试与插件编译。
 #
 # 生产标准对应 AGENTS.md：
-#   - make check：C++ 单测 + Python 单测 + 跨语言对拍
-#   - make so   ：编译 librime-qingjian.so，-Wall -Wextra 零警告
+#   - make check / ctest：C++ 单测 + Python 单测 + 跨语言对拍
+#   - make so / cmake：编译 librime-qingjian.so / librime-qingjian.dll，零警告
 #
 # 插件依赖 librime 内部头（不在发行版头包里），故从源码构建 librime
 # 后链接；单元测试是纯 C++/Python，不依赖 librime。
@@ -46,3 +46,54 @@ jobs:
           test -f librime-qingjian.so
           nm -D librime-qingjian.so | grep -q rime_require_module_qingjian
           echo "librime-qingjian.so 已产出且导出模块符号"
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 纯 C++ 单测 + Python 单测（MSVC）
+        run: |
+          cmake -S . -B build -A x64
+          cmake --build build --config Release
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: 安装 vcpkg 依赖
+        timeout-minutes: 60
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install `
+            boost glog yaml-cpp leveldb marisa opencc --triplet x64-windows
+
+      - name: 克隆并修补 librime（MSVC）
+        run: |
+          git clone --depth 1 https://github.com/rime/librime .analysis/librime
+          git -C .analysis/librime apply "$env:GITHUB_WORKSPACE/patches/librime-windows-plugin-loading.patch"
+          cmake -S .analysis/librime -B .analysis/librime/build -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DBUILD_TEST=OFF -DBUILD_DATA=OFF -DBUILD_SAMPLE=OFF `
+            -DENABLE_EXTERNAL_PLUGINS=ON
+          cmake --build .analysis/librime/build --config Release
+
+      - name: 构建插件 DLL
+        run: |
+          $rimeLib = (Get-ChildItem -Recurse .analysis/librime/build -Filter "rime.lib" | Select-Object -First 1).FullName
+          if (-not $rimeLib) { throw "未找到 rime.lib" }
+          Write-Output "使用 rime.lib: $rimeLib"
+          cmake -S . -B build-plugin -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DBUILD_PLUGIN=ON `
+            -DRIME_SRC="$env:GITHUB_WORKSPACE/.analysis/librime" `
+            -DRIME_LIBRARY="$rimeLib"
+          cmake --build build-plugin --config Release
+
+      - name: 校验插件产物
+        run: |
+          $dll = Get-ChildItem -Recurse build-plugin -Filter "librime-qingjian.dll" | Select-Object -First 1
+          if (-not $dll) { throw "未找到 librime-qingjian.dll" }
+          Write-Output "已产出 librime-qingjian.dll: $($dll.FullName)"
+          $rimeLib = Get-ChildItem -Recurse .analysis/librime/build -Filter "rime.lib" | Select-Object -First 1
+          if (-not $rimeLib) { throw "未找到 rime.lib" }
+          Write-Output "已使用 rime.lib: $($rimeLib.FullName)"

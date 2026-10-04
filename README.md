@@ -55,7 +55,18 @@ sudo dnf install -y gcc-c++ make python3 boost-devel glog-devel \
 brew install boost glog yaml-cpp leveldb marisa opencc librime
 ```
 
-无论哪个系统，都要再克隆一份 librime 源码树（插件编译需要它的内部头文件）：
+**Windows**（MSVC + vcpkg，与小狼毫/librime 官方一致）
+
+先装 Visual Studio（勾选「使用 C++ 的桌面开发」工作负载）与
+[vcpkg](https://github.com/microsoft/vcpkg)，然后装依赖：
+
+```powershell
+vcpkg install boost glog yaml-cpp leveldb marisa opencc --triplet x64-windows
+```
+
+Windows 用 CMake 构建（见下方「开发」），还需要一份应用了本仓库补丁的 librime 源码树。
+
+Linux / macOS 也要再克隆一份 librime 源码树（插件编译需要它的内部头文件）：
 
 ```bash
 git clone --depth 1 https://github.com/rime/librime .analysis/librime
@@ -76,6 +87,21 @@ git clone --depth 1 https://github.com/rime/librime .analysis/librime
 `install.sh` 做的事：编译 `librime-qingjian.so` 并装到 `/usr/lib/rime-plugins/`，
 把释义表生成 `qingjian.zh_en.bin` / `qingjian.en_zh.bin` 装到 Rime 用户目录的
 `qingjian/` 子目录，并安装配置示例。
+
+**Windows（小狼毫）**：把编译出的 `librime-qingjian.dll` 复制到小狼毫的
+`rime-plugins\` 目录（与 `rime.dll` 同级）。小狼毫使用的 librime 还必须包含
+`patches/librime-windows-plugin-loading.patch`；不能只替换插件 DLL。
+
+释义数据与配置和 Linux 相同（`.bin` 放用户数据目录的 `qingjian\` 子目录，配置示例
+改名为 `<你的方案>.custom.yaml`）。完整词库从青简仓库获取：
+
+```powershell
+git clone --depth 1 https://github.com/qingjian-team/qingjian .analysis/qingjian
+python tools/build_gloss.py .analysis/qingjian/assets/glossary/glossary-en.tsv `
+  <Rime用户目录>\qingjian\qingjian.zh_en.bin
+python tools/build_gloss.py .analysis/qingjian/assets/glossary/glossary-zh.tsv `
+  <Rime用户目录>\qingjian\qingjian.en_zh.bin --lowercase-key
+```
 
 ## 启用
 
@@ -123,6 +149,35 @@ python3 tools/build_gloss.py glossary-zh.tsv qingjian.en_zh.bin --lowercase-key
 make check    # C++ 单测 + Python 单测 + 跨语言对拍
 make so       # 编译 librime-qingjian.so（需 boost 与 RIME_SRC）
 ```
+
+Windows（MSVC）等价命令：
+
+```powershell
+# 纯 C++ 单测 + Python 单测（无需 librime）
+cmake -S . -B build -A x64
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+
+# 编译 librime-qingjian.dll（需先构建好 librime，并指定其 rime.lib 导入库）
+# 用独立构建目录 build-plugin，避免与上面的单测构建目录冲突
+cmake -S . -B build-plugin -A x64 -DCMAKE_TOOLCHAIN_FILE=<vcpkg.cmake> `
+  -DBUILD_PLUGIN=ON -DRIME_SRC=<librime 源码树> -DRIME_LIBRARY=<rime.lib>
+cmake --build build-plugin --config Release
+```
+
+构建 Windows librime 前应用本仓库补丁：
+
+```powershell
+git -C <librime源码树> apply <本仓库>/patches/librime-windows-plugin-loading.patch
+cmake -S <librime源码树> -B <librime源码树>/build -A x64 `
+  -DCMAKE_TOOLCHAIN_FILE=<vcpkg.cmake> -DENABLE_EXTERNAL_PLUGINS=ON
+cmake --build <librime源码树>/build --config Release
+```
+
+> 注意：librime 上游尚未实现 Windows 下「从插件目录加载外部 DLL 插件」——
+> `plugins/plugins_module.cc` 的 `current_module_path()` 在 `_WIN32` 分支为空。
+> 本仓库代码与构建已支持 Windows，并附补丁
+> `patches/librime-windows-plugin-loading.patch`，应用到 librime 后即可加载。
 
 ## 许可
 

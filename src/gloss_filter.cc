@@ -65,8 +65,8 @@ void GlossFilter::Initialize() {
   ReadStringList(config, name_space_ + "/dictionaries_en_zh", &en_names);
   rime::Deployer& deployer = rime::Service::instance().deployer();
   std::vector<std::string> dirs = {
-      (deployer.user_data_dir / "qingjian").to_utf8_string(),
-      (deployer.shared_data_dir / "qingjian").to_utf8_string(),
+      (deployer.user_data_dir / "qingjian").u8string(),
+      (deployer.shared_data_dir / "qingjian").u8string(),
   };
   zh_en_.Load(ResolveGlossPaths(dirs, zh_names, "zh_en.bin"));
   en_zh_.Load(ResolveGlossPaths(dirs, en_names, "en_zh.bin"));

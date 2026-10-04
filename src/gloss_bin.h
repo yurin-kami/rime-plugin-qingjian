@@ -8,7 +8,8 @@
  *                key_off/key_len/val_off/val_len（各 u32 LE）
  *   [16+16N, 尾) 字符串 arena：key 字节后接 value 字节，由偏移与长度分隔
  *
- * 运行时 mmap 整个文件，对索引二分查找；命中返回指向映射内存的
+ * 运行时内存映射整个文件（Linux/macOS 用 mmap，Windows 用 MapViewOfFile），
+ * 对索引二分查找；命中返回指向映射内存的
  * string_view，零拷贝、零分配。文件按 key 的 UTF-8 字节序排序。
  */
 #pragma once
@@ -51,10 +52,10 @@ class GlossBin {
   const std::string& last_error() const { return error_; }
 
  private:
-  /* 释放 mmap 映射并清空内部状态。 */
+  /* 释放映射并清空内部状态。 */
   void Reset();
 
-  /* mmap 基址 */
+  /* 映射基址 */
   uint8_t* data_ = nullptr;
   /* 映射字节数 */
   size_t data_len_ = 0;
@@ -66,6 +67,11 @@ class GlossBin {
   const uint8_t* arena_ = nullptr;
   /* 最近一次错误信息 */
   std::string error_;
+#ifdef _WIN32
+  /* Windows：文件句柄与文件映射句柄（映射视图释放后须 CloseHandle）。 */
+  void* file_handle_ = nullptr;
+  void* mapping_handle_ = nullptr;
+#endif
 };
 
 }

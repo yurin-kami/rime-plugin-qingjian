@@ -78,6 +78,28 @@ TEST(索引越界拒绝打开) {
   std::remove(path.c_str());
 }
 
+TEST(字符串区越界拒绝打开) {
+  std::string path = temp_path("bad_offsets");
+  std::ofstream f(path, std::ios::binary);
+  f.write("QJGLOSS1", 8);
+  std::vector<uint8_t> header;
+  qingjian_test::push_u64_le(header, 1);
+  f.write(reinterpret_cast<const char*>(header.data()), header.size());
+  std::vector<uint8_t> entry;
+  qingjian_test::push_u32_le(entry, 0);
+  qingjian_test::push_u32_le(entry, 4);
+  qingjian_test::push_u32_le(entry, 0);
+  qingjian_test::push_u32_le(entry, 1);
+  f.write(reinterpret_cast<const char*>(entry.data()), entry.size());
+  f.write("x", 1);
+  f.close();
+
+  GlossBin bin;
+  CHECK(!bin.Open(path));
+  CHECK(!bin.last_error().empty());
+  std::remove(path.c_str());
+}
+
 TEST(移动语义后仍可查词) {
   std::string path = temp_path("move");
   build_gloss(path, {{"你好", "hello"}});
