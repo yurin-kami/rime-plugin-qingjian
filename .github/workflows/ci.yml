@@ -112,6 +112,9 @@ jobs:
           # vcpkg 的静态 gflags 库名为 gflags_static.lib；librime 旧版查找器未覆盖它。
           $gflags = "$env:GITHUB_WORKSPACE/.analysis/librime/cmake/FindGflags.cmake"
           (Get-Content $gflags -Raw).Replace('NAMES gflags libgflags', 'NAMES gflags gflags_static libgflags') | Set-Content $gflags -NoNewline
+          # gflags 使用 PathMatchSpecA，MSVC 需要显式链接 Shlwapi。
+          $rimeCmake = "$env:GITHUB_WORKSPACE/.analysis/librime/src/CMakeLists.txt"
+          (Get-Content $rimeCmake -Raw).Replace('dbghelp)', 'dbghelp shlwapi)') | Set-Content $rimeCmake -NoNewline
           cmake -S .analysis/librime -B .analysis/librime/build -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-release `
