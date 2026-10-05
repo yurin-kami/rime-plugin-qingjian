@@ -13,7 +13,7 @@
 # 说明：Makefile 仍是 Linux/macOS 的常用入口；本文件主要面向 Windows（MSVC
 # 与小狼毫/librime 官方一致），同时也兼容 Linux/macOS。
 
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.15)
 project(rime-qingjian LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -115,6 +115,10 @@ if(BUILD_PLUGIN)
   else()
     target_link_libraries(rime-qingjian PRIVATE rime)
   endif()
+
+  # 内部头引用 Boost；显式传播头目录，不能依赖系统搜索路径。
+  find_package(Boost REQUIRED)
+  target_include_directories(rime-qingjian SYSTEM PRIVATE ${Boost_INCLUDE_DIRS})
 
   if(GLOG_LIBRARY)
     target_link_libraries(rime-qingjian PRIVATE ${GLOG_LIBRARY})
