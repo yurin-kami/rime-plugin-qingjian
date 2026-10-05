@@ -52,8 +52,11 @@ sudo dnf install -y gcc-c++ make python3 boost-devel glog-devel \
 **macOS**（先装 Homebrew，并 `xcode-select --install` 装命令行工具）
 
 ```bash
-brew install boost glog yaml-cpp leveldb marisa opencc librime
+brew install boost librime
 ```
+
+（librime 的 glog / yaml-cpp / leveldb / marisa / opencc 依赖会一并装上；
+Makefile 会自动加上 Homebrew 的头文件与库路径。）
 
 **Windows**（MSVC + vcpkg，与小狼毫/librime 官方一致）
 
@@ -82,11 +85,17 @@ git clone --depth 1 https://github.com/rime/librime .analysis/librime
 ./install.sh all --tsv-dir /path/to/qingjian/assets/glossary
 ```
 
-`.so` 会装到系统插件目录（需 sudo 输密码），数据装到你的 Rime 用户目录（无需 root）。
+`.so`（macOS 上为 `.dylib`）会装到系统插件目录，数据装到你的 Rime 用户目录
+（无需 root）。Linux 用 sudo 安装插件；macOS 鼠须管（Squirrel）用户则按脚本
+提示，把编译好的 `.dylib` 拖进弹出的 Finder 窗口——`/Library/Input Methods/`
+受系统 TCC 保护，sudo 命令行写不进，只能走 Finder 授权；数据装到
+`~/Library/Rime/qingjian/`。
 
 `install.sh` 做的事：编译 `librime-qingjian.so` 并装到 `/usr/lib/rime-plugins/`，
 把释义表生成 `qingjian.zh_en.bin` / `qingjian.en_zh.bin` 装到 Rime 用户目录的
-`qingjian/` 子目录，并安装配置示例。
+`qingjian/` 子目录，并安装配置示例。macOS 鼠须管用户会自动链接其内嵌的
+librime（而非 Homebrew 版）再安装——否则插件与宿主各绑一个 librime 实例，
+模块注册互不可见。
 
 **Windows（小狼毫）**：把编译出的 `librime-qingjian.dll` 复制到小狼毫的
 `rime-plugins\` 目录（与 `rime.dll` 同级）。小狼毫使用的 librime 还必须包含
@@ -117,7 +126,7 @@ patch:
     overwrite_comment: false           # 已有注释时不覆盖
 ```
 
-然后重新部署（fcitx5-rime 输入法图标 → 重新部署）。
+然后重新部署（fcitx5-rime 输入法图标 → 重新部署；macOS 鼠须管 → 重新部署）。
 
 ## 多词典切换
 
@@ -179,6 +188,13 @@ cmake --build <librime源码树>/build --config Release
 > `plugins/plugins_module.cc` 的 `current_module_path()` 在 `_WIN32` 分支为空。
 > 本仓库代码与构建已支持 Windows，并附补丁
 > `patches/librime-windows-plugin-loading.patch`，应用到 librime 后即可加载。
+
+macOS 鼠须管手动编译（`install.sh so` 会自动带上这些参数）：
+
+```bash
+make so RIME_LOGGING=0 \
+  RIME_LIB="/Library/Input Methods/Squirrel.app/Contents/Frameworks/librime.1.dylib"
+```
 
 ## 许可
 

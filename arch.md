@@ -112,18 +112,21 @@ plum/                      plum 配方
 ## 构建与依赖
 
 - 编译器：`g++`（Linux/macOS）或 MSVC（Windows），C++17。
-- 链接：`-lrime`（系统已装），另需 `-lglog`（与已装 librime 的日志 ABI 一致）。
+- 链接：`-lrime`；发行版 librime 另需 `-lglog`（与日志 ABI 一致）。
+  macOS 鼠须管内嵌 librime 未启用 glog，用 `RIME_LOGGING=0` 跳过并改用
+  其内嵌 `librime.1.dylib`（`RIME_LIB` 指定）。
 - 头文件：librime 内部头（`src/rime/*.h`、`include/`）来自 librime 源码树，
   Arch 的 `librime` 包只提供 `rime_api.h`，故构建时用 `-I` 指向一份 librime 源码。
-- 需系统包：`boost`（`common.h` 引用了 boost 头文件）、`glog`（已装）。
+- 需系统包：`boost`（`common.h` 引用了 boost 头文件）；`glog` 仅启用日志时需要。
 - Windows：用 CMake（`CMakeLists.txt`，MSVC + vcpkg）。链接 `rime.lib` 导入库时
   定义 `RIME_IMPORTS`，使 `RimeRegisterModule` / `Registry` 等符号从
   `rime.dll` 导入；同时定义 `GLOG_USE_GLOG_EXPORT`。构建与 CI 步骤见
   `.github/workflows/ci.yml` 与 README「开发」。
 
-> 注意：`build_config.h` 由 cmake 从 `build_config.h.in` 生成，本仓库的 Makefile
-> 与 CMakeLists.txt 都会生成一份等价的 `build_config.h`（定义 `RIME_ENABLE_LOGGING`
-> 等，与已装 librime 保持一致）。
+> 注意：`build_config.h` 由 cmake 从 `build_config.h.in` 生成。本仓库的 Makefile
+> 会生成 `build/build_config.h`（默认定义 `RIME_ENABLE_LOGGING`，
+> `RIME_LOGGING=0` 时注释掉）；CMakeLists.txt 生成 `build/rime/build_config.h`。
+> 日志配置必须与目标 librime 保持一致。
 
 ## 许可
 
