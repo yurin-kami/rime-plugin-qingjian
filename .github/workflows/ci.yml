@@ -109,6 +109,9 @@ jobs:
           git -C .analysis/librime checkout FETCH_HEAD
           git -C .analysis/librime apply "$env:GITHUB_WORKSPACE/patches/librime-windows-plugin-loading.patch"
           if ($LASTEXITCODE) { throw "librime 补丁应用失败" }
+          # vcpkg 的静态 gflags 库名为 gflags_static.lib；librime 旧版查找器未覆盖它。
+          $gflags = "$env:GITHUB_WORKSPACE/.analysis/librime/cmake/FindGflags.cmake"
+          (Get-Content $gflags -Raw).Replace('NAMES gflags libgflags', 'NAMES gflags gflags_static libgflags') | Set-Content $gflags -NoNewline
           cmake -S .analysis/librime -B .analysis/librime/build -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-windows-release `
