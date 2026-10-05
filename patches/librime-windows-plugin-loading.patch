@@ -75,6 +75,19 @@ index 8492cfe..983a5f1 100644
  
  static void rime_plugins_initialize() {
    rime::PluginManager::instance().LoadPlugins(
+diff --git a/cmake/FindGflags.cmake b/cmake/FindGflags.cmake
+index 1b8e6b0..7c4ddab 100644
+--- a/cmake/FindGflags.cmake
++++ b/cmake/FindGflags.cmake
+@@ -9,7 +9,7 @@ if (Gflags_STATIC)
+   endif (WIN32)
+ endif (Gflags_STATIC)
+-find_library(Gflags_LIBRARY NAMES gflags libgflags)
++find_library(Gflags_LIBRARY NAMES gflags gflags_static libgflags)
+ if(Gflags_INCLUDE_PATH AND Gflags_LIBRARY)
+   set(Gflags_FOUND TRUE)
+ endif(Gflags_INCLUDE_PATH AND Gflags_LIBRARY)
+
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index 9493f3f..5e26bc3 100644
 --- a/src/CMakeLists.txt

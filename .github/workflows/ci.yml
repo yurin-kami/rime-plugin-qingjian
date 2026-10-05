@@ -93,6 +93,12 @@ jobs:
             --triplet x64-windows-release --overlay-triplets="$env:GITHUB_WORKSPACE/.github/vcpkg-triplets"
           if ($LASTEXITCODE) { throw "vcpkg 依赖安装失败" }
 
+      - name: 缓存 librime 构建
+        uses: actions/cache@v4
+        with:
+          path: .analysis/librime/build
+          key: librime-msvc-${{ runner.os }}-7bc3fb0-${{ hashFiles('patches/librime-windows-plugin-loading.patch', '.github/vcpkg-triplets/*.cmake') }}
+
       - name: 克隆并修补 librime（MSVC）
         run: |
           # 固定补丁基线，避免 master 变化导致不可复现的构建。
@@ -110,7 +116,7 @@ jobs:
             -DBUILD_TEST=OFF -DBUILD_DATA=OFF -DBUILD_SAMPLE=OFF `
             -DBUILD_STATIC=ON -DENABLE_EXTERNAL_PLUGINS=ON
           if ($LASTEXITCODE) { throw "librime 配置失败" }
-          cmake --build .analysis/librime/build --config Release --parallel 4
+          cmake --build .analysis/librime/build --target rime --config Release --parallel 4
           if ($LASTEXITCODE) { throw "librime 构建失败" }
 
       - name: 构建插件 DLL
