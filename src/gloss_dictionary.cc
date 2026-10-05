@@ -40,10 +40,13 @@ std::vector<std::string> ResolveGlossPaths(
   std::vector<std::string> result;
   for (const std::string& name : names) {
     for (const std::string& dir : base_dirs) {
+      // dir 为 UTF-8 字符串，用 u8path 构造以正确处理非 ASCII 路径
+      // （Windows 下本地窄字符码页并非 UTF-8）。返回统一转回 UTF-8。
       std::filesystem::path candidate =
-          std::filesystem::path(dir) / (name + "." + suffix);
+          std::filesystem::u8path(dir) /
+          std::filesystem::u8path(name + "." + suffix);
       if (std::filesystem::exists(candidate)) {
-        result.push_back(candidate.string());
+        result.push_back(candidate.u8string());
         break;
       }
     }

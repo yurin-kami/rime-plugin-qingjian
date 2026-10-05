@@ -7,11 +7,16 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <string>
-#include <unistd.h>
 #include <utility>
 #include <vector>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace qingjian_test {
 
@@ -48,7 +53,7 @@ inline void build_gloss(
     push_u32_le(index, val_off);
     push_u32_le(index, static_cast<uint32_t>(item.second.size()));
   }
-  std::ofstream f(path, std::ios::binary);
+  std::ofstream f(std::filesystem::u8path(path), std::ios::binary);
   f.write("QJGLOSS1", 8);
   std::vector<uint8_t> count;
   push_u64_le(count, items.size());
@@ -57,10 +62,21 @@ inline void build_gloss(
   f.write(reinterpret_cast<const char*>(arena.data()), arena.size());
 }
 
-/* 取一个不重复的临时文件路径。 */
+/* 跨平台的进程 ID。 */
+inline long long current_pid() {
+#ifdef _WIN32
+  return static_cast<long long>(_getpid());
+#else
+  return static_cast<long long>(getpid());
+#endif
+}
+
+/* 取一个不重复的临时文件路径（UTF-8）。 */
 inline std::string temp_path(const char* tag) {
-  return std::string("/tmp/qingjian_test_") + tag + "_" +
-         std::to_string(static_cast<long long>(getpid())) + ".bin";
+  std::filesystem::path p = std::filesystem::temp_directory_path() /
+      ("qingjian_test_" + std::string(tag) + "_" +
+       std::to_string(current_pid()) + ".bin");
+  return p.u8string();
 }
 
 }

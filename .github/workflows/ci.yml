@@ -1,8 +1,8 @@
-# 持续集成：每个提交/PR 都在 Linux 与 macOS 上跑单元测试与插件编译。
+# 持续集成：每个提交/PR 都在 Linux、macOS 与 Windows 上跑单元测试与插件编译。
 #
 # 生产标准对应 AGENTS.md：
-#   - make check：C++ 单测 + Python 单测 + 跨语言对拍
-#   - make so   ：编译插件（Linux .so / macOS .dylib），-Wall -Wextra 零警告
+#   - make check / ctest：C++ 单测 + Python 单测 + 跨语言对拍
+#   - make so / cmake：编译插件（Linux .so / macOS .dylib / Windows .dll）
 #
 # 插件依赖 librime 内部头（不在发行版头包里），故克隆 librime 源码树；
 # 链接用的 librime 库：Linux 从源码构建安装，macOS 用 Homebrew 预编译包。
@@ -11,6 +11,11 @@
 name: CI
 
 on: [push, pull_request, workflow_dispatch]
+
+# PR 的 push 与 pull_request 共用并发组，只保留最新一次验证。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-and-build-linux:
@@ -47,6 +52,105 @@ jobs:
           test -f librime-qingjian.so
           nm -D librime-qingjian.so | grep -q rime_require_module_qingjian
           echo "librime-qingjian.so 已产出且导出模块符号"
+
+  windows:
+    runs-on: windows-2022
+    env:
+      VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.analysis/vcpkg-cache,readwrite"
+      VCPKG_DOWNLOADS: "${{ github.workspace }}/.analysis/vcpkg-downloads"
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 纯 C++ 单测 + Python 单测（MSVC）
+        run: |
+          cmake -S . -B build -A x64
+          if ($LASTEXITCODE) { throw "单测配置失败" }
+          cmake --build build --config Release --parallel 4
+          if ($LASTEXITCODE) { throw "单测构建失败" }
+          ctest --test-dir build -C Release --output-on-failure
+          if ($LASTEXITCODE) { throw "单测失败" }
+
+      - name: 恢复 vcpkg 二进制与下载缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            .analysis/vcpkg-cache
+            .analysis/vcpkg-downloads
+          key: windows-2022-vcpkg-release-v1-${{ hashFiles('.github/vcpkg-triplets/*.cmake', '.github/workflows/ci.yml') }}
+          restore-keys: windows-2022-vcpkg-release-v1-
+
+      - name: 安装 Release 静态依赖
+        timeout-minutes: 30
+        run: |
+          New-Item -ItemType Directory -Force .analysis/vcpkg-cache | Out-Null
+          # 不安装 boost 元包：只保留 librime 使用的组件及其传递依赖。
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install `
+            boost-algorithm boost-crc boost-dll boost-interprocess boost-preprocessor `
+            boost-range boost-regex boost-scope-exit boost-signals2 boost-unordered `
+            boost-uuid boost-vmd glog yaml-cpp leveldb marisa-trie opencc `
+            --triplet x64-windows-release --overlay-triplets="$env:GITHUB_WORKSPACE/.github/vcpkg-triplets"
+          if ($LASTEXITCODE) { throw "vcpkg 依赖安装失败" }
+
+      - name: 缓存 librime 构建
+        uses: actions/cache@v4
+        with:
+          path: .analysis/librime/build
+          key: librime-msvc-${{ runner.os }}-7bc3fb0-${{ hashFiles('patches/librime-windows-plugin-loading.patch', '.github/vcpkg-triplets/*.cmake') }}
+
+      - name: 克隆并修补 librime（MSVC）
+        run: |
+          # 固定补丁基线，避免 master 变化导致不可复现的构建。
+          git init .analysis/librime
+          git -C .analysis/librime remote add origin https://github.com/rime/librime
+          git -C .analysis/librime fetch --depth 1 origin 7bc3fb0005a03aff1c086611e4d52bb7f6444fdd
+          if ($LASTEXITCODE) { throw "librime 下载失败" }
+          git -C .analysis/librime checkout FETCH_HEAD
+          git -C .analysis/librime apply "$env:GITHUB_WORKSPACE/patches/librime-windows-plugin-loading.patch"
+          if ($LASTEXITCODE) { throw "librime 补丁应用失败" }
+          # vcpkg 的静态 gflags 库名为 gflags_static.lib；librime 旧版查找器未覆盖它。
+          $gflags = "$env:GITHUB_WORKSPACE/.analysis/librime/cmake/FindGflags.cmake"
+          (Get-Content $gflags -Raw).Replace('NAMES gflags libgflags', 'NAMES gflags gflags_static libgflags') | Set-Content $gflags -NoNewline
+          # gflags 使用 PathMatchSpecA，MSVC 需要显式链接 Shlwapi。
+          $rimeCmake = "$env:GITHUB_WORKSPACE/.analysis/librime/src/CMakeLists.txt"
+          (Get-Content $rimeCmake -Raw).Replace('dbghelp)', 'dbghelp shlwapi)') | Set-Content $rimeCmake -NoNewline
+          cmake -S .analysis/librime -B .analysis/librime/build -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-release `
+            -DVCPKG_OVERLAY_TRIPLETS="$env:GITHUB_WORKSPACE/.github/vcpkg-triplets" `
+            -DBUILD_TEST=OFF -DBUILD_DATA=OFF -DBUILD_SAMPLE=OFF `
+            -DBUILD_STATIC=ON -DENABLE_EXTERNAL_PLUGINS=ON
+          if ($LASTEXITCODE) { throw "librime 配置失败" }
+          cmake --build .analysis/librime/build --target rime --config Release --parallel 4
+          if ($LASTEXITCODE) { throw "librime 构建失败" }
+
+      - name: 构建插件 DLL
+        run: |
+          $rimeLib = (Get-ChildItem -Recurse .analysis/librime/build -Filter "rime.lib" | Select-Object -First 1).FullName
+          if (-not $rimeLib) { throw "未找到 rime.lib" }
+          Write-Output "使用 rime.lib: $rimeLib"
+          cmake -S . -B build-plugin -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-release `
+            -DVCPKG_OVERLAY_TRIPLETS="$env:GITHUB_WORKSPACE/.github/vcpkg-triplets" `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DBUILD_PLUGIN=ON `
+            -DRIME_SRC="$env:GITHUB_WORKSPACE/.analysis/librime" `
+            -DRIME_LIBRARY="$rimeLib"
+          if ($LASTEXITCODE) { throw "插件配置失败" }
+          cmake --build build-plugin --config Release --parallel 4
+          if ($LASTEXITCODE) { throw "插件构建失败" }
+
+      - name: 校验插件产物
+        run: |
+          $dll = Get-ChildItem -Recurse build-plugin -Filter "librime-qingjian.dll" | Select-Object -First 1
+          if (-not $dll) { throw "未找到 librime-qingjian.dll" }
+          Write-Output "已产出 librime-qingjian.dll: $($dll.FullName)"
+          $rimeLib = Get-ChildItem -Recurse .analysis/librime/build -Filter "rime.lib" | Select-Object -First 1
+          if (-not $rimeLib) { throw "未找到 rime.lib" }
+          Write-Output "已使用 rime.lib: $($rimeLib.FullName)"
 
   test-and-build-macos:
     runs-on: macos-latest

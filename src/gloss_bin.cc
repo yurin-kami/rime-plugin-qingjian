@@ -1,17 +1,31 @@
 /*
- * GlossBin 实现：mmap 映射 + 定宽索引二分查找。
+ * GlossBin 实现：内存映射 + 定宽索引二分查找。
  *
- * 依赖 POSIX（mmap/open/fstat），目标平台为 Linux。文件格式与写入端
+ * Linux/macOS 用 POSIX mmap，Windows 用 CreateFileMapping/MapViewOfFile，
+ * 二者均为零拷贝只读映射，语义一致。文件格式与写入端
  * （tools/build_gloss.py）严格一致：小端序、key 按 UTF-8 字节序升序。
  */
 #include "gloss_bin.h"
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <filesystem>
+#else
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 #include <cstring>
+#include <limits>
+#include <utility>
 
 namespace qingjian {
 
@@ -35,7 +49,7 @@ uint64_t read_u64_le(const uint8_t* p) {
 
 }
 
-/* 析构：释放 mmap 映射。 */
+/* 析构：释放映射。 */
 GlossBin::~GlossBin() { Reset(); }
 
 /* 移动构造：接管对方的映射，并把对方置空。 */
@@ -46,6 +60,12 @@ GlossBin::GlossBin(GlossBin&& other) noexcept {
   entries_ = other.entries_;
   arena_ = other.arena_;
   error_ = std::move(other.error_);
+#ifdef _WIN32
+  file_handle_ = other.file_handle_;
+  mapping_handle_ = other.mapping_handle_;
+  other.file_handle_ = nullptr;
+  other.mapping_handle_ = nullptr;
+#endif
   other.data_ = nullptr;
   other.data_len_ = 0;
   other.count_ = 0;
@@ -63,6 +83,12 @@ GlossBin& GlossBin::operator=(GlossBin&& other) noexcept {
     entries_ = other.entries_;
     arena_ = other.arena_;
     error_ = std::move(other.error_);
+#ifdef _WIN32
+    file_handle_ = other.file_handle_;
+    mapping_handle_ = other.mapping_handle_;
+    other.file_handle_ = nullptr;
+    other.mapping_handle_ = nullptr;
+#endif
     other.data_ = nullptr;
     other.data_len_ = 0;
     other.count_ = 0;
@@ -74,20 +100,71 @@ GlossBin& GlossBin::operator=(GlossBin&& other) noexcept {
 
 /* 释放映射并复位所有字段。 */
 void GlossBin::Reset() {
+#ifdef _WIN32
   if (data_ != nullptr) {
-    munmap(data_, data_len_);
+    ::UnmapViewOfFile(data_);
   }
+  if (mapping_handle_ != nullptr) {
+    ::CloseHandle(static_cast<HANDLE>(mapping_handle_));
+  }
+  if (file_handle_ != nullptr) {
+    ::CloseHandle(static_cast<HANDLE>(file_handle_));
+  }
+  mapping_handle_ = nullptr;
+  file_handle_ = nullptr;
+#else
+  if (data_ != nullptr) {
+    ::munmap(data_, data_len_);
+  }
+#endif
   data_ = nullptr;
   data_len_ = 0;
   count_ = 0;
   entries_ = nullptr;
   arena_ = nullptr;
-  error_.clear();
 }
 
-/* 打开并映射文件，校验 magic 与索引区边界。 */
+/* 打开并映射文件，校验 magic、索引区与字符串区边界。 */
 bool GlossBin::Open(const std::string& path) {
   Reset();
+  error_.clear();
+#ifdef _WIN32
+  std::filesystem::path wpath = std::filesystem::u8path(path);
+  HANDLE fh = ::CreateFileW(wpath.c_str(), GENERIC_READ,
+                             FILE_SHARE_READ | FILE_SHARE_DELETE,
+                            nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                            nullptr);
+  if (fh == INVALID_HANDLE_VALUE) {
+    error_ = "无法打开文件: " + path;
+    return false;
+  }
+  LARGE_INTEGER size;
+  if (!::GetFileSizeEx(fh, &size) ||
+      size.QuadPart < static_cast<LONGLONG>(kHeaderSize) ||
+      static_cast<unsigned long long>(size.QuadPart) >
+          std::numeric_limits<size_t>::max()) {
+    error_ = "文件过小或读取元信息失败";
+    ::CloseHandle(fh);
+    return false;
+  }
+  HANDLE mh = ::CreateFileMappingW(fh, nullptr, PAGE_READONLY, 0, 0, nullptr);
+  if (mh == nullptr) {
+    error_ = "映射失败";
+    ::CloseHandle(fh);
+    return false;
+  }
+  void* p = ::MapViewOfFile(mh, FILE_MAP_READ, 0, 0, 0);
+  if (p == nullptr) {
+    error_ = "映射失败";
+    ::CloseHandle(mh);
+    ::CloseHandle(fh);
+    return false;
+  }
+  file_handle_ = fh;
+  mapping_handle_ = mh;
+  data_ = static_cast<uint8_t*>(p);
+  data_len_ = static_cast<size_t>(size.QuadPart);
+#else
   int fd = ::open(path.c_str(), O_RDONLY);
   if (fd < 0) {
     error_ = "无法打开文件: " + path;
@@ -105,24 +182,38 @@ bool GlossBin::Open(const std::string& path) {
   if (p == MAP_FAILED) {
     data_ = nullptr;
     data_len_ = 0;
-    error_ = "mmap 失败";
+    error_ = "映射失败";
     return false;
   }
   data_ = static_cast<uint8_t*>(p);
+#endif
   if (std::memcmp(data_, kMagic, sizeof(kMagic)) != 0) {
     error_ = "magic 不匹配，不是释义索引文件";
     Reset();
     return false;
   }
   count_ = read_u64_le(data_ + 8);
-  size_t index_bytes = static_cast<size_t>(count_) * kEntrySize;
-  if (kHeaderSize + index_bytes > data_len_) {
+  if (count_ > (data_len_ - kHeaderSize) / kEntrySize) {
     error_ = "索引区越界，文件损坏";
     Reset();
     return false;
   }
+  size_t index_bytes = static_cast<size_t>(count_) * kEntrySize;
   entries_ = data_ + kHeaderSize;
   arena_ = data_ + kHeaderSize + index_bytes;
+  const size_t arena_size = data_len_ - kHeaderSize - index_bytes;
+  for (uint64_t i = 0; i < count_; ++i) {
+    const uint8_t* entry = entries_ + i * kEntrySize;
+    const uint64_t key_end = uint64_t(read_u32_le(entry)) +
+                             read_u32_le(entry + 4);
+    const uint64_t value_end = uint64_t(read_u32_le(entry + 8)) +
+                               read_u32_le(entry + 12);
+    if (key_end > arena_size || value_end > arena_size) {
+      error_ = "字符串区越界，文件损坏";
+      Reset();
+      return false;
+    }
+  }
   return true;
 }
 

@@ -6,15 +6,22 @@
 输入中文时，候选词右侧显示对应的英文释义；输入英文时，右侧显示中文释义。
 释义始终是辅助信息，不改动候选词本体与选词逻辑。
 
-## 形态：librime 原生插件（`.so`）
+## 形态：librime 原生插件（`.so` / `.dll`）
 
-插件编译为动态库 `librime-qingjian.so`，安装到 librime 的插件目录
-`/usr/lib/rime-plugins/`。librime 启动时由内置的 `plugins` 模块扫描该目录、
-`dlopen` 加载并调用模块的 `initialize`，把组件注册进 Registry（见
-`librime/src/rime/config/plugins.cc` 与 `src/rime/gear/gears_module.cc` 的同款机制）。
+插件编译为动态库 `librime-qingjian.so`（Windows 下为 `librime-qingjian.dll`），
+安装到 librime 的插件目录（Linux 下 `/usr/lib/rime-plugins/`，Windows 下与
+`librime.dll` 同级的 `rime-plugins/`）。librime 启动时由内置的 `plugins` 模块
+扫描该目录、动态加载并调用模块的 `initialize`，把组件注册进 Registry（见
+`librime/plugins/plugins_module.cc` 与 `src/rime/gear/gears_module.cc` 的同款机制）。
 
-选择原生 `.so` 而非 Lua 插件：释义表约 28 万条，用 C++ `mmap` + 二分查找，
+选择原生动态库而非 Lua 插件：释义表约 28 万条，用 C++ 内存映射 + 二分查找，
 不进入 Lua GC 堆。
+
+> 注意：Windows 下，librime 上游对「从插件目录加载外部 DLL 插件」尚未实现
+> （`plugins/plugins_module.cc` 的 `current_module_path()` 在 `_WIN32` 分支为空），
+> 故默认 librime 暂不会自动加载 `librime-qingjian.dll`。本仓库代码与构建已
+> 支持 Windows，并附补丁 `patches/librime-windows-plugin-loading.patch`，
+> 应用到 librime 后即可加载。
 
 ## 组件：一个 Filter
 
@@ -40,8 +47,9 @@ UTF-8 无 BOM。释义最多取两条，词性可省略，读音以 `|` 分隔�
 ### 二进制索引 `gloss.bin`
 
 启动时不解析几十万行文本，而是预处理成定宽索引 + 字符串池（arena），
-用 `mmap` 零拷贝映射后二分查找。这与青简把释义表打包成 `.qj` mmap 容器的
-思路一致（青简还多了哈希索引，本插件用有序二分，等价 O(log n)、无哈希冲突）。
+用内存映射（Linux/macOS 用 `mmap`，Windows 用 `CreateFileMapping` +
+`MapViewOfFile`）零拷贝映射后二分查找。这与青简把释义表打包成 `.qj` mmap
+容器的思路一致（青简还多了哈希索引，本插件用有序二分，等价 O(log n)、无哈希冲突）。
 
 布局（小端序）：
 
@@ -103,17 +111,22 @@ plum/                      plum 配方
 
 ## 构建与依赖
 
-- 编译器：`g++`（C++17）。
+- 编译器：`g++`（Linux/macOS）或 MSVC（Windows），C++17。
 - 链接：`-lrime`；发行版 librime 另需 `-lglog`（与日志 ABI 一致）。
   macOS 鼠须管内嵌 librime 未启用 glog，用 `RIME_LOGGING=0` 跳过并改用
   其内嵌 `librime.1.dylib`（`RIME_LIB` 指定）。
 - 头文件：librime 内部头（`src/rime/*.h`、`include/`）来自 librime 源码树，
   Arch 的 `librime` 包只提供 `rime_api.h`，故构建时用 `-I` 指向一份 librime 源码。
-- 需系统包：`boost`（`common.h` 引用了 boost 头文件）；`glog` 仅发行版需要。
+- 需系统包：`boost`（`common.h` 引用了 boost 头文件）；`glog` 仅启用日志时需要。
+- Windows：用 CMake（`CMakeLists.txt`，MSVC + vcpkg）。链接 `rime.lib` 导入库时
+  定义 `RIME_IMPORTS`，使 `RimeRegisterModule` / `Registry` 等符号从
+  `rime.dll` 导入；同时定义 `GLOG_USE_GLOG_EXPORT`。构建与 CI 步骤见
+  `.github/workflows/ci.yml` 与 README「开发」。
 
-> 注意：`build_config.h` 由 cmake 从 `build_config.h.in` 生成，本仓库的 Makefile
-> 会生成一份等价的 `build/build_config.h`（默认定义 `RIME_ENABLE_LOGGING`，
-> `RIME_LOGGING=0` 时注释掉，与目标 librime 保持一致）。
+> 注意：`build_config.h` 由 cmake 从 `build_config.h.in` 生成。本仓库的 Makefile
+> 会生成 `build/build_config.h`（默认定义 `RIME_ENABLE_LOGGING`，
+> `RIME_LOGGING=0` 时注释掉）；CMakeLists.txt 生成 `build/rime/build_config.h`。
+> 日志配置必须与目标 librime 保持一致。
 
 ## 许可
 

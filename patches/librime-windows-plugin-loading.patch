@@ -1,0 +1,103 @@
+diff --git a/README-windows.md b/README-windows.md
+index 87ee314..9137bc2 100644
+--- a/README-windows.md
++++ b/README-windows.md
+@@ -58,6 +58,17 @@ This creates `build\bin\Release\rime.dll`.
+ Build artifacts: the shared library along with API headers and supporting files
+ can be found in `dist` directory.
+ 
++## Build external plugins
++
++External plugins are supported on Windows. Build librime with
++`ENABLE_EXTERNAL_PLUGINS=ON` to load `*.dll` plugins from the `rime-plugins`
++directory next to `rime.dll`:
++
++``` batch
++cmake . -B build -DENABLE_EXTERNAL_PLUGINS=ON -DBUILD_SHARED_LIBS=ON
++cmake --build build --config Release
++```
++
+ ## Try it in the console
+ 
+ `librime` comes with a REPL application which can be used to test if the library
+diff --git a/plugins/plugins_module.cc b/plugins/plugins_module.cc
+index 8492cfe..983a5f1 100644
+--- a/plugins/plugins_module.cc
++++ b/plugins/plugins_module.cc
+@@ -94,9 +94,32 @@ PluginManager& PluginManager::instance() {
+ }  // namespace rime
+ 
+ #ifdef _WIN32
+-// TODO: implement this when ready to support DLL plugins on Windows.
+-inline static rime::path current_module_path() {
+-  return rime::path{};
++#include <windows.h>
++
++inline static rime::path symbol_location(const void* symbol) {
++  HMODULE module = nullptr;
++  // `FROM_ADDRESS` resolves the module by an address inside it, like
++  // `dladdr`; `UNCHANGED_REFCOUNT` keeps the module reference count intact.
++  if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
++                              GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                          reinterpret_cast<LPCWSTR>(symbol), &module) ||
++      module == nullptr) {
++    return rime::path{};
++  }
++  // `GetModuleFileNameW` truncates when the buffer is too small; grow it
++  // until the full path fits.
++  std::wstring buffer(MAX_PATH, L'\0');
++  DWORD length = 0;
++  while ((length = GetModuleFileNameW(module, buffer.data(),
++                                      static_cast<DWORD>(buffer.size()))) ==
++         buffer.size()) {
++    buffer.resize(buffer.size() * 2);
++  }
++  if (length == 0) {
++    return rime::path{};
++  }
++  buffer.resize(length);
++  return rime::path{fs::path{buffer}};
+ }
+ #else
+ #include <dlfcn.h>
+@@ -111,13 +134,13 @@ inline static rime::path symbol_location(const void* symbol) {
+     return rime::path{};
+   }
+ }
++#endif
+ 
+ inline static rime::path current_module_path() {
+   void rime_require_module_plugins();
+   return symbol_location(
+       reinterpret_cast<const void*>(&rime_require_module_plugins));
+ }
+-#endif
+ 
+ static void rime_plugins_initialize() {
+   rime::PluginManager::instance().LoadPlugins(
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 9493f3f..5e26bc3 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -39,7 +39,7 @@ set(rime_optional_deps "")
+ if(Gflags_FOUND)
+   set(rime_optional_deps ${rime_optional_deps} ${Gflags_LIBRARY})
+ endif()
+-if(ENABLE_EXTERNAL_PLUGINS)
++if(ENABLE_EXTERNAL_PLUGINS AND NOT WIN32)
+   set(rime_optional_deps ${rime_optional_deps} dl)
+ endif()
+ 
+@@ -87,7 +87,11 @@ if(BUILD_SHARED_LIBS)
+     VERSION ${rime_version}
+     SOVERSION ${rime_soversion}
+     LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib
+-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
++    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin
++    WINDOWS_EXPORT_ALL_SYMBOLS ON)
++  if(MINGW)
++    target_link_libraries(rime "-Wl,--export-all-symbols")
++  endif()
+   if(XCODE_VERSION)
+     set_target_properties(rime PROPERTIES INSTALL_NAME_DIR "@rpath")
+   endif()
